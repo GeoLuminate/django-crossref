@@ -1,0 +1,14 @@
+{% load i18n crossref_tags %}
+
+<div class="publication">
+  <div class="publication-body">
+		<small>{{pub.container_title}}, {{ pub.published|date:'Y' }}</small>
+    <h4 class="publication-title">{{ pub.title }}</h4>
+		{% if pub.author.exists %}
+			<h5 class="publication-authors">{{ pub.authors_display }}</h5>
+		{% endif %}
+		{% if pub.abstract %}
+    	<p class="publication-abstract">{{ pub.abstract|truncatewords:75 }}</p>
+		{% endif %}
+  </div>
+</div>

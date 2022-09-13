@@ -1,0 +1,15 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools %}
+  <ul class="grp-object-tools">
+    {% block object-tools-items %}
+      {% if has_add_permission %}
+        <li><a href='{% url "admin:add_from_crossref" %}' class="grp-add-link grp-state-focus">{% trans "CrossRef" %}</a></li>
+        <li><a href='{% url "admin:add_from_crossref" %}' class="grp-add-link grp-state-focus">{% trans 'Bibtex' %}</a></li>
+      {{ block.super }}
+      {% endif %}
+    {% endblock %}
+  </ul>
+{% endblock %}
+

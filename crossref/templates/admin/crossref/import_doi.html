@@ -1,0 +1,96 @@
+{% extends "admin/base_site.html" %}
+
+{% load crispy_forms_tags i18n %}
+
+{% block breadcrumbs %}
+	<div class="breadcrumbs">
+		<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+		<a href="../../">{% trans 'Publications' %}</a> &rsaquo;
+		<a href="../">{% trans 'Publications' %}</a> &rsaquo;
+		{% trans 'CrossRef' %}
+	</div>
+{% endblock %}
+
+{% block content_title %}<h1>Get resource from CrossRef</h1>{% endblock %}
+
+
+
+{% block content %}
+  <fieldset class='module grp-module'>
+    <h2 class="grp-collapse-handler">Enter a DOI or comma separated list of DOIs</h2>
+    <div class="form-row grp-row">
+      <div class="field-box l-2c-fluid l-d-4">
+        <form id="createPublicationForm" method="post"> 
+          {% csrf_token %}
+          <textarea name="DOI" id="id_DOI" cols="30" rows="20" onkeyup="processChange()"></textarea>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class='module grp-module'>
+    <h2 class="grp-collapse-handler">Preview</h2>
+    <div class='grp-row'>
+      <p id='preview' style='min-height:250px;'></p>
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+
+{% block submit_buttons_bottom %}
+<footer class="grp-module grp-submit-row grp-fixed-footer">
+  <ul>
+    <li><input form='createPublicationForm' type="submit" value="Save publications" class="grp-button grp-default" name="_save"></li>
+  </ul>
+</footer>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .csl-entry {
+    padding: 0.5em;
+  }
+</style>
+{% endblock extra_css %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/citation-js@0.4.0-8/build/citation.js"></script>
+<script>
+
+  function debounce(func, timeout = 1000) {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { func.apply(this, args); }, timeout);
+    };
+  }
+  
+  function previewCitation() {
+
+    if (doi.value) {
+      var doi_list = doi.value.split(',');
+      var cleaned = [];
+      for (let i = 0; i < doi_list.length; i++) {
+        cleaned.push(doi_list[i].trim())
+      }
+      var cite = Cite(cleaned)
+      preview.innerHTML = cite.format('bibliography',{format:'html'})
+    }
+  }
+
+  const Cite = require('citation-js')
+  var doi = document.getElementById('id_DOI');
+  var preview = document.getElementById('preview');
+  const processChange = debounce(() => previewCitation());
+</script>
+{% endblock %}
+
+{% endblock %}
+
