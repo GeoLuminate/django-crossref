@@ -16,15 +16,15 @@ class CitationPlugin(CMSPluginBase):
     text_enabled = True
     form = CitationForm
     disable_child_plugins = True
-    require_parent = True
+    # require_parent = True
 
-    raw_id_fields = ('publication',)
+    raw_id_fields = ('work',)
     autocomplete_lookup_fields = {
-        'm2m': ['publication'],
+        'm2m': ['work'],
     }
 
     def icon_alt(self, instance):
-        return '<br>'.join([pub.title for pub in instance.publication.all()])
+        return '<br>'.join([pub.title for pub in instance.work.all()])
 
 
 

@@ -1,49 +1,79 @@
 from django.contrib import admin
 from django.utils.html import mark_safe
 from django.urls import path
-from .forms import CrossRefForm
+from .forms import CrossRefForm, DOIForm, UploadForm, WorkAdminForm, BibtexForm
 from django.shortcuts import render
 from django.utils.translation import gettext as _
+from django.shortcuts import render
+from django.http import HttpResponseRedirect
+from django.template.defaultfilters import pluralize
+from requests.exceptions import HTTPError
+from django.db.models import Count
+from .models import Work, Author, Funder, Settings
+from solo.admin import SingletonModelAdmin
+from django.contrib import messages
+from django.utils.html import mark_safe
 from io import TextIOWrapper
 import bibtexparser as bib
-from django.shortcuts import render
-from django.contrib import messages
-from django.http import HttpResponseRedirect
-import pandas as pd
-from crossref.forms import UploadForm, PublicationForm
-from django.template.defaultfilters import pluralize
 from tqdm import tqdm
-from django.conf import settings
-from habanero import Crossref
-from .utils import get_publication_model
-from bibtexparser.bwriter import BibTexWriter
-from bibtexparser.bibdatabase import BibDatabase
-from django_super_deduper.merge import MergedModelInstance
-from django.contrib.admin.models import LogEntry, ContentType
-from requests.exceptions import HTTPError
-from django.db.models import Count, Case, When, IntegerField, Q
+from crossref.parsers import bibtex
 
-Publication = get_publication_model()
+class ChangeListQuickAdd():
+    select2 = {}
+    change_list_template = 'admin/crossref/quick_add.html'
+    
+    def changelist_view(self, request, extra_context={}):
+        extra_context['select2'] = self.select2
+        extra_context['select'] = self.get_model_fields()
+        extra_context['doi_form'] = DOIForm()
+        extra_context['bibtex_import_form'] = UploadForm()
+        return super().changelist_view(request, extra_context)
 
-class PublicationAdminMixin(admin.ModelAdmin):
+    def get_model_fields(self):
+        return [f.name.replace('_','-') for f in self.model._meta.get_fields()]
 
+
+class CrossRefMixin(ChangeListQuickAdd, admin.ModelAdmin):
+
+    class Media:
+        css = {
+            'all': (
+                # 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css',
+                'crossref/select2/select2.css',
+                )
+        }
+        js = (
+            'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js',
+            'crossref/js/crossref.js',
+        )
+
+
+class WorkAdminMixin(CrossRefMixin):
+    change_list_template = 'admin/crossref/grappelli_quick_doi.html'
+    form = WorkAdminForm 
+    
+    select2 = {
+        'endpoint': 'https://api.crossref.org/works',
+        'id': 'DOI',
+        'text': 'container-title',
+        'ajax': {
+            'data': {
+                ''
+            }
+        }
+    }
     date_hierarchy = 'published'
     raw_id_fields = ('author',)
     autocomplete_lookup_fields = {'m2m': ['author']}
     list_display_links = ('title',)
 
-    list_display = ['file','article', 'label', 'title', 'container_title', 'is_referenced_by_count', 'published','issue','volume','page','type']
+    list_display = ['article', 'label', 'title', 'container_title', 'is_referenced_by_count', 'published','issue','volume','page','type',]
 
-    list_filter = ['type', 'source','container_title','language',]
-    search_fields = ('DOI', 'title','id','bibtex','label')
-    readonly_fields = ['bibtex',]
+    list_filter = ['type', 'container_title','language',]
+    search_fields = ('DOI', 'title', 'id', 'label')
+    
     fieldsets = [
-        (None, {
-            'fields':[
-                'pdf',
-                ]}
-            ),
-        ('Information', {'fields':[
+        ('', {'fields':[
             'DOI',
             ('type', 'published'),
             'title',
@@ -52,149 +82,90 @@ class PublicationAdminMixin(admin.ModelAdmin):
             'volume',
             'issue',
             'page',
+            'abstract',
             ]}),
         ('Additional', {'fields':[
             'language',
-            'source',
-            'bibtex',
             ]}),
         ]
 
     class Media:
         js = ("https://kit.fontawesome.com/a08181010c.js",)
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('author')
+
     def get_urls(self):
         return [
-            path('import_bibtex/', self.admin_site.admin_view(self.import_bibtex), name='import_bibtex'),
-            path('add_from_crossref/', self.admin_site.admin_view(self.add_from_crossref), name='add_from_crossref'),
+            path('import-bibtex/', self.admin_site.admin_view(self.import_bibtex), name='import_bibtex'),
+            path('add-doi/', self.admin_site.admin_view(self.get_doi_or_query_crossref), name='add_from_crossref'),
         ] + super().get_urls()
 
-    def add_from_crossref(self, request, *args, **kwargs):
-        context = dict(
-           self.admin_site.each_context(request),
-           form=CrossRefForm,
-        )
-
+    def get_doi_or_query_crossref(self, request, *args, **kwargs):
         if request.POST:
-            form = CrossRefForm(request.POST, request.FILES)
+            form = DOIForm(request.POST)
             if form.is_valid():
-                dois = [f.strip() for f in form.cleaned_data['DOI'].split(',')]
+                self._get_data_from_crossref(request, form.cleaned_data['DOI'])
+            else:
+                if form.errors['DOI'][0] == 'Work with this DOI already exists.':
+                    message = f"An item with that DOI already exists in the database: {form.data['DOI']}"
+                else:
+                    message = mark_safe("<br>".join(e for e in form.errors['DOI']))
+                self.message_user(request, message, messages.INFO) 
+        return HttpResponseRedirect('../')
+     
+    def _get_data_from_crossref(self, request, doi):
+        try:
+            # either retrieve the object from the database, or query crossref for the info
+            instance, created = self.get_queryset(request).get_or_query_crossref(doi)
+        except HTTPError as e:
+            # Something wen't wrong during the request to crossref
+            self.message_user(request, e, messages.ERROR)
+            return None # return None so the calling function knows something wen't wrong
+        
+        if created:
+            message = mark_safe(f"Succesfully added: {instance.bibliographic()}")
+            self.message_user(request, message, messages.SUCCESS)
+        else:
+            message = f"{instance.DOI} already exists in this database"
+            self.message_user(request, message, messages.INFO)
 
-                saved = []
-                for doi in dois:
-                    pub_pk = self.save_from_crossref(request, doi)
-                    saved.append(pub_pk)
-
-                messages.info(request, f"Added {len(dois)} publication{pluralize(dois, ',s')}.")
-                return HttpResponseRedirect('../')
-
-        return render(request, 
-            "admin/crossref/import_doi.html", 
-            dict(self.admin_site.each_context(request),form=CrossRefForm)
-            )
-
+        return instance
+        
     def import_bibtex(self, request, *args, **kwargs):
-        context = dict(
-           self.admin_site.each_context(request),
-           form=UploadForm,
-            )
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
-            f = TextIOWrapper(form.cleaned_data['file'].file, encoding='utf-8')
-            bibtex = bib.load(f)
-            pbar = tqdm(total=len(bibtex.entries))
-
-            # try adding publications
-            for label, entry in bibtex.entries_dict.items():
+            with TextIOWrapper(form.cleaned_data['file'].file, encoding='utf-8') as f:
+                bib = bibtex.parse(f.read())
                 
-                try:
-                    instance = Publication.objects.get(label=label)
-                except Publication.DoesNotExist:
-                    continue
-
+            
+            pbar = tqdm(total=len(bib))
+            for entry in bib:   
+                
                 if entry.get('doi'):
-                    # use the DOI to query data from crossref
-                    pub_pk = self.save_from_crossref(request, entry.get('doi'), instance)
-                    # raise ValueError('No Pub PK')
-                    if not pub_pk:
-                        self.parse_bibtex(entry, instance)
+                    # If the bibtex entry has a DOI, use it to fetch data from crossref
+                    if self._get_data_from_crossref(request, entry.get('doi')):
+                        continue
+
+                bibtex_form = BibtexForm(entry)
+                if bibtex_form.is_valid():
+                    bibtex_form.save()
                 else:
-                    self.parse_bibtex(entry, instance)
-                
-                # publications.append(pub_pk)
+                    # probably append to some error list and return later
+                    pass
+
                 pbar.update(1)
 
 
             # messages.info(request, f"Added {len(publications)} publication{pluralize(publications, ',s')}.")
-            return HttpResponseRedirect('../')
+            
+        return HttpResponseRedirect('../')
 
-        return render(request, 
-            'admin/crossref/import_bibtex.html', 
-            dict(self.admin_site.each_context(request),form=UploadForm)
-            )
-
-    def bib_entry_to_string(self, entry):
-        db = BibDatabase()
-        db.entries = [entry]
-        return BibTexWriter().write(db)
-
-    def parse_bibtex(self, entry, instance):
-
-        entry['bibtex'] = self.bib_entry_to_string(entry)
-        authors = []
-        for a in entry.get('author','').split(' and '):
-            parts = a.split(' ')
-            fields = ['given','family']
-            authors.append({k:v for k, v in zip(fields, parts)})
-
-        entry['author'] = authors
-        entry['type'] = entry.get('type',entry['ENTRYTYPE'])
-        if entry.get('owner'):
-            del entry['owner']
-
-        if instance.label:
-            entry['label'] = instance.label
-
-        pubform = PublicationForm(entry, instance=instance)
-        if pubform.is_valid():
-            pubform.save()
-            return pubform.instance
+    def article(self, obj):
+        if obj.DOI:
+            return mark_safe('<a href="https://doi.org/{}"><i class="fas fa-globe fa-lg"></i></a>'.format(obj.DOI))
         else:
-            print('Submission invalid')
-            print(pubform.errors)
-
-    def save_from_crossref(self, request, doi, instance=None, update=True):
-
-        qs = self.get_queryset(request).filter(DOI=doi)
-        if not qs.exists() or update:
-
-            if not instance.can_update_from_crossref():
-                return instance
-
-
-            try:
-                entry = instance.cleaned_crossref_response(doi)
-            except HTTPError:
-                # the given doi is not housed in crossref, lets
-                # try get an updated bibtex string from doi.org
-                # ACTUALLY THIS DOESN'T WORK WELL IF THE DOI IS
-                # A DATA PUBLICATION DOI AND NOT THE ARTICLE
-                # E.G. PANGEAE PUBLICATIONS
-                return
-            except Exception as e:
-                print(e)
-                return
-
-            # entry['bibtex'] = instance.query_doi_for_bibtex(doi)
-            entry['label'] = instance.label
-            pubform = PublicationForm(entry, instance=instance)
-
-            if pubform.is_valid():
-                pubform.save()
-                return pubform.instance.pk
-            else:
-                print('Submission invalid')
-                print(pubform.errors)
+            return ''
         
     def file(self, obj):
         if obj.pdf:
@@ -202,46 +173,39 @@ class PublicationAdminMixin(admin.ModelAdmin):
         else:
             return ""
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('author','keywords')
 
-    def _keywords(self, obj):
-        return u", ".join(o.name for o in obj.keywords.all())
 
-class AuthorAdminMixin(admin.ModelAdmin):
 
-    list_display = ['prefix','given', 'family','suffix','ORCID','authenticated_orcid','_publications']
+class AuthorAdminMixin(CrossRefMixin):
+
+    list_display = ['prefix','given', 'family','suffix','ORCID','authenticated_orcid','_works']
     search_fields = ['family', 'given', 'ORCID']
     list_filter = ['authenticated_orcid',]
 
     def get_queryset(self, request):
         return (
         super().get_queryset(request)
-        .prefetch_related('publications')
-        .annotate(_publications=Count('publications'))
-        )
+        .prefetch_related('works')
+        .annotate(_works=Count('works')))
 
-    def _publications(self, object):
-        return object._publications
-    _publications.admin_order_field = '_publications'
-    _publications.short_description  = _('Publications')
+    def _works(self, object):
+        return object._works
+    _works.admin_order_field = '_works'
+    _works.short_description  = _('Works')
 
-    def merge(self, request, qs):
-        to_be_merged = [str(x) for x in qs]
-        if len(to_be_merged) > 2:
-            to_be_merged = f"{', '.join(to_be_merged[:-1])} and {to_be_merged[-1]}"
-        else:
-            to_be_merged = ' and '.join(to_be_merged)
-        change_message = f"Merged {to_be_merged} into a single {qs.model._meta.verbose_name}"
-        merged = MergedModelInstance.create(qs.first(),qs[1:],keep_old=False)
-        LogEntry.objects.log_action(
-            user_id=request.user.pk,
-            content_type_id=ContentType.objects.get_for_model(qs.model).pk,
-            object_id=qs.first().pk,
-            object_repr=str(qs.first()),
-            action_flag=2, #CHANGE
-            change_message=_(change_message),
-        )
-        self.message_user(request, change_message, messages.SUCCESS)
 
-    merge.short_description = "Merge duplicate authors"
+class FunderAdminMixin(CrossRefMixin):
+    select2 = {
+        'endpoint': 'https://api.crossref.org/funders',
+        'id': 'id',
+        'text': 'name'
+    }
+
+    list_display = ['id', 'name', 'location','uri']
+    search_fields = ['name', 'id',]
+    list_filter = ['location',]
+
+admin.site.register(Settings, SingletonModelAdmin)
+admin.site.register(Work, WorkAdminMixin)
+admin.site.register(Author, AuthorAdminMixin)
+admin.site.register(Funder, FunderAdminMixin)

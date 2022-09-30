@@ -1,23 +1,24 @@
 from django.template import Library
-from crossref.utils import get_publication_model
+from crossref.utils import get_work_model
 from django.template.loader import render_to_string
-from django.conf import settings
-from sekizai.context import SekizaiContext
+from crossref.conf import settings
 from sekizai.helpers import get_varname
+
+Work = get_work_model() 
 
 register = Library()
 
-@register.inclusion_tag('crossref/publications.html', takes_context=True)
-def get_publications(context, qs=None):
-	"""Get all publications."""
+@register.inclusion_tag('crossref/works.html', takes_context=True)
+def get_works(context, qs=None):
+	"""Get all works."""
 	if not qs:
-		qs = get_publication_model().objects.select_related()
-	return {'publications': qs}
+		qs = Work.objects.select_related()
+	return {'works': qs}
 
-@register.inclusion_tag('crossref/publication.html', takes_context=True)
-def get_publication(context, pub):
-	""" Get a single publication."""
-	return {'publication': pub}
+@register.inclusion_tag('crossref/work.html', takes_context=True)
+def get_work(context, pub):
+	""" Get a single work."""
+	return {'work': pub}
 
 @register.simple_tag(takes_context=True)
 def bibliography(context, pub, style=None):
@@ -33,7 +34,7 @@ def cite(context, pub, cite_type='p', hyperlink=True, style=None):
 		style = settings.CROSSREF_DEFAULT_STYLE
 
 	new_context = {
-			'publications': pub,
+			'works': pub,
 			'type': cite_type,
 			'hyperlink': hyperlink,
 		}

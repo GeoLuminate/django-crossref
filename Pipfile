@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django-sortedm2m = "*"
+habanero = "*"
+bibtexparser = "*"
+django-sekizai = "*"
+django = "*"
+django-select2 = "*"
+django-appconf = "*"
+coverage = "*"
+django-extensions = "*"
+model-bakery = "*"
+ipython = "*"
+django-solo = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"

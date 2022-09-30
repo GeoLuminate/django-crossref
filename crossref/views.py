@@ -1,21 +1,23 @@
 from django.views.generic import ListView
 from django.core.paginator import InvalidPage
-from django_filters.views import FilterView
-
 from .paginators import YearPaginator
+from .utils import get_work_model
 
-class PublicationsByYearMixin(FilterView, ListView):
-    template_name = 'crossref/publication_list.html'
+Work = get_work_model()
+
+
+class WorksByYearMixin(ListView):
+    template_name = 'crossref/work_list.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page'] = self.get_page(on='year', qs=context['filter'].qs)
         years = []
         if context['page']:
-            for publication in context['page'].object_list:
-                if not years or (years[-1][0] != publication.year):
-                    years.append((publication.year, []))
-                years[-1][1].append(publication)
+            for work in context['page'].object_list:
+                if not years or (years[-1][0] != work.year):
+                    years.append((work.year, []))
+                years[-1][1].append(work)
 
         context['years'] = years
         return context
@@ -39,3 +41,6 @@ class PublicationsByYearMixin(FilterView, ListView):
         return page
 
 
+
+class WorkList(WorksByYearMixin):
+    model = Work

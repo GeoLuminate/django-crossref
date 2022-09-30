@@ -1,0 +1,3 @@
+{% autoescape off %}{% for pub in pubs %}
+{{ pub.authors }}. {{ pub.title }}{% if not pub.title_ends_with_punct %}.{% endif %}{% if pub.journal %} {{ pub.journal }},{% endif %}{% if pub.book_title %} {{ pub.book_title }},{% endif %}{% if pub.publisher %} {{ pub.publisher }},{% endif %}{% if pub.institution %} {{ pub.institution }},{% endif %}{% if pub.volume %} volume {{ pub.volume }},{% endif %}{% if pub.number %} issue {{ pub.number }},{% endif %}{% if pub.pages %} pages {{ pub.pages }},{% endif %}{% if pub.month %} {{ pub.month_long }}{% endif %} {{ pub.year }}.
+{% endfor %}{% endautoescape %}

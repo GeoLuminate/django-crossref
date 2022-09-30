@@ -1,0 +1,41 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block object-tools %}
+  <ul class="grp-object-tools">
+    {% block object-tools-items %}
+      {% if has_add_permission %}
+      {% with cl.opts.verbose_name as name %}
+        {% if name != 'author' %}
+          <li>
+            {% url cl.opts|admin_urlname:'add' as add_url %}
+            <div style='position:relative;'>
+              <a style='position:absolute; right:0;' id='select2Opener' href class="grp-add-link grp-state-focus">{% trans 'Add from Crossref' %}</a>
+              <select href id="crossrefQuickAdd" class="addlink"  
+                data-post--url="{% add_preserved_filters add_url is_popup to_field %}" 
+                data-ajax--url="{{select2.endpoint}}" 
+                {% if select2_placeholder %}data-placeholder={{select2_placeholder}}{% endif %}
+                data-crossref-name={{select2.text|default_if_none:'name'}}
+                data-crossref-ID={{select2.id|default_if_none:'id'}}
+                {% if select2.headers %}data-ajax--headers="{{ select2.headers }}"{% endif %} 
+                style="min-width:450px; display:none;"
+                ></select>
+            </div>
+          </li>
+          {% if name != 'funder' %}
+            <li><a href='{% url "admin:import_bibtex" %}' class="grp-add-link grp-state-focus">{% trans 'Bibtex' %}</a></li>
+          {% endif %}
+        {% endif %}
+      {% endwith %}
+
+      {{ block.super }}
+      {% endif %}
+
+    {% endblock %}
+  </ul>
+{% endblock %}
+
+{% block footer %}
+  {{ block.super }}
+  <script>const $ = django.jQuery;</script>
+{% endblock footer %}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modsCollection xmlns="http://www.loc.gov/mods/v3">
+	{% for pub in pubs %}
+	<mods version="3.2" ID="{{ pub.id }}">
+		<genre authority="marcgt">{{ pub.type.mods_genre }}</genre>
+		<titleInfo>
+			<title>{{ pub.title }}</title>
+		</titleInfo>
+		<originInfo>
+			<dateIssued>{{ pub.year }}</dateIssued>{% if pub.publisher %}
+			<publisher>{{ pub.publisher }}</publisher>{% elif pub.institution %}
+			<publisher>{{ pub.institution }}</publisher>{% endif %}
+		</originInfo>
+		{% for given_name, family_name in pub.authors_list_split %}
+		<name type="personal">
+			<namePart type="given">{{ given_name }}</namePart>
+			<namePart type="family">{{ family_name }}</namePart>
+		</name>
+		{% endfor %}
+		<relatedItem type="host">
+			<date>{{ pub.year }}</date>
+			{% if pub.journal_or_book_title %}
+			<titleInfo>
+				<title>{{ pub.journal_or_book_title }}</title>
+			</titleInfo>
+			{% endif %}
+			<part>
+				{% if pub.volume %}
+				<detail type="volume">
+					<number>{{ pub.volume }}</number>
+				</detail>
+				{% endif %}
+				{% if pub.number %}
+				<detail type="issue">
+					<number>{{ pub.number }}</number>
+				</detail>
+				{% endif %}
+				{% if pub.pages %}
+				<extent unit="page">
+					<start>{{ pub.first_page }}</start>
+					<end>{{ pub.last_page }}</end>
+				</extent>
+				{% endif %}
+			</part>
+		</relatedItem>
+		{% if pub.pdf %}
+		<location>
+			<url displayLabel="PDF" access="raw object">{{ MEDIA_URL }}{{ pub.pdf }}</url>
+		</location>
+		{% endif %}
+		{% if pub.doi %}
+		<identifier type="doi">{{ pub.doi }}</identifier>
+		{% endif %}
+		{% if pub.isbn %}
+		<identifier type="isbn">{{ pub.isbn }}</identifier>
+		{% endif %}
+		{% if pub.abstract %}
+		<abstract>{{ pub.abstract }}</abstract>
+		{% endif %}
+	</mods>
+	{% endfor %}
+</modsCollection>

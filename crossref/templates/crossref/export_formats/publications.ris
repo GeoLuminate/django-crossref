@@ -1,0 +1,19 @@
+{% for pub in pubs %}
+TY  - {{ pub.type.ris_type }}
+T1  - {{ pub.title }}{% for given_name, family_name in pub.authors_list_split %}
+AU  - {{ family_name }}, {{ given_name }}{% endfor %}{% if pub.journal %}
+JO  - {{ pub.journal }}{% endif %}{% if pub.book_title %}
+TI  - {{ pub.book_title }}{% endif %}{% if pub.isbn %}
+SN  - {{ pub.isbn }}{% endif %}
+PY  - {{ pub.year }}{% if pub.publisher %}
+PB  - {{ pub.publisher }}{% elif pub.institution %}
+PB  - {{ pub.institution }}{% endif %}{% if pub.volume %}
+VL  - {{ pub.volume }}{% endif %}{% if pub.number %}
+IS  - {{ pub.number }}{% endif %}{% if pub.pages %}
+SP  - {{ pub.first_page }}
+EP  - {{ pub.last_page }}{% endif %}{% if pub.doi %}
+M3  - doi:{{ pub.doi }}{% endif %}{% if pub.url %}
+UR  - {{ pub.url }}{% endif %}{% if pub.note %}
+N1  - {{ pub.note }}{% endif %}
+ER  -
+{% endfor %}

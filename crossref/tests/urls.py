@@ -10,6 +10,6 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = [
-	url(r'^crossref/', include('publications.urls', namespace='publications')),
-	path(r'admin/', admin.site.urls),
+	path('', include('crossref.urls')),
+	path('admin/', admin.site.urls),
 ]

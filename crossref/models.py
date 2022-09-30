@@ -1,8 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext as _, pgettext as _p
 from sortedm2m.fields import SortedManyToManyField
-from taggit.managers import TaggableManager
-from django.conf import settings
+from crossref.conf import settings
 from habanero import Crossref
 import requests
 from datetime import timedelta as td
@@ -11,16 +10,39 @@ from requests.exceptions import HTTPError
 from django.utils.html import mark_safe
 from django.urls import reverse
 from django.db.models import F
-from django_ckeditor_5.fields import CKEditor5Field
 
-cr = Crossref(
-        base_url=getattr(settings,"CROSSREF_BASE_URL", "https://api.crossref.org"),
-        api_key=getattr(settings,"CROSSREF_API_KEY", None),
-        mailto=getattr(settings,"CROSSREF_MAILTO", settings.DEFAULT_FROM_EMAIL),
-        ua_string = getattr(settings,"CROSSREF_UA_STRING", None)
-    )
+from .fields import ArrayField
+from . import validators
+from solo.models import SingletonModel
+from crossref.conf import settings
+from .choices import STYLE_CHOICES
+from django.template.loader import render_to_string
+from .managers import WorkQuerySet
 
-class AuthorAbstract(models.Model):
+class Settings(SingletonModel):
+    
+    default_style = models.CharField(_('default citation style'),
+        help_text = _('Determines the default style for both in-text citations and bibliography'),
+        max_length=255,
+        choices=STYLE_CHOICES, 
+        default=settings.CROSSREF_DEFAULT_STYLE)
+    api_key = models.CharField(_('CrossRef API Key'),
+        help_text = _('API key to send with each request. (currently does nothing)'),
+        max_length=255, 
+        blank=True, null=True, 
+        default=settings.CROSSREF_API_KEY)
+    ua_string = models.CharField(max_length=255,
+        blank=True, null=True, 
+        default=settings.CROSSREF_UA_STRING)
+
+    def __str__(self):
+        return _("Settings")
+
+    class Meta:
+        verbose_name = _("Settings")
+
+
+class Author(models.Model):
     prefix = models.CharField(max_length=32, blank=True, null=True)
     given = models.CharField(max_length=64, blank=True, null=True)
     family = models.CharField(max_length=64, blank=True)
@@ -29,10 +51,9 @@ class AuthorAbstract(models.Model):
     authenticated_orcid = models.BooleanField(null=True, default=None)
     
     class Meta:
-        db_table='publication_author'
+        db_table='work_author'
         verbose_name = _('author')
         verbose_name_plural =  _('authors')
-        abstract = True
         ordering = ['family']
         
     def __str__(self):
@@ -47,7 +68,7 @@ class AuthorAbstract(models.Model):
         return f"{self.family}, {self.given[0]}"
 
     def get_absolute_url(self):
-        return reverse("publications:author_detail", kwargs={"pk": self.pk})
+        return reverse("works:author_detail", kwargs={"pk": self.pk})
 
     @staticmethod
     def autocomplete_search_fields():
@@ -63,37 +84,41 @@ class AuthorAbstract(models.Model):
 
     def given_init_family(self):
         """Returns J. Smith"""
-        return f"{self.given[0]}. {self.family}"
+        if self.given:
+            return f"{self.given[0]}. {self.family}"
 
     def family_given_init(self):
         """Returns Smith, J."""
-        return f"{self.family}, {self.given[0]}."
+        if self.given:       
+            return f"{self.family}, {self.given[0]}."
+        else:
+            return self.family
     
-class PublicationAbstract(models.Model):
-    """Model representing a publication."""
 
-    class Meta:
-        verbose_name = _('publication')
-        verbose_name_plural = _('publications')
-        abstract = True
-        ordering = [F('published').desc(nulls_last=True), 'label']
-        
-    pdf = models.FileField(upload_to='publications/', blank=True, null=True)
-
+class Work(models.Model):
+    objects = WorkQuerySet.as_manager()
+    
+    """Model representing a work."""
     DOI = models.CharField(max_length=128, 
         verbose_name='DOI', 
         blank=True, null=True,
         unique=True)
+    isbn_type = ArrayField(
+        help_text=_('Array of objects that contain type and value of International Standard Book Numbers (ISBNs)'),
+        blank=True, null=True)
+    issn_type = ArrayField(
+        help_text=_('Array of objects that contain type and value of International Standard Serial Numbers (ISSNs)'),
+        blank=True, null=True)
+
     URL = models.URLField(max_length=128, 
         verbose_name='URL', 
         blank=True, null=True,
         unique=True)
-
     label = models.CharField(_('label'), 
         max_length=64, 
         unique=True,
         blank=True)
-    type = models.CharField(_('publication type'), 
+    type = models.CharField(_('work type'), 
         max_length=64, 
         blank=True, null=True)
     container_title = models.CharField(_('journal/book title'), 
@@ -102,9 +127,9 @@ class PublicationAbstract(models.Model):
     title = models.CharField(_('title'), 
         max_length=512, 
         blank=True, null=True)
-    author = SortedManyToManyField(settings.CROSSREF_MODELS.get('author'),
+    author = SortedManyToManyField("crossref.Author",
         verbose_name=_('authors'),
-        related_name='publications', 
+        related_name='works', 
         sort_value_field_name='position',
         blank=True)
     published = models.DateField(_('date published'), 
@@ -123,34 +148,36 @@ class PublicationAbstract(models.Model):
     page = models.CharField(_('page'), 
         max_length=16, 
         blank=True, null=True)
-    keywords = TaggableManager(verbose_name=_('key words'), 
-        blank=True, help_text=None)
-    abstract = CKEditor5Field(blank=True)
+    abstract = models.TextField(blank=True, null=True)
 
     is_referenced_by_count = models.PositiveSmallIntegerField(_('cited by'), 
         blank=True, null=True)
     language = models.CharField(_('language'), 
         max_length=16, blank=True, null=True)
-    source = models.CharField(_('source'), 
-        max_length=16, blank=True, null=True)
 
+    source = models.CharField(max_length=128,
+        default='User Upload',
+        blank=True)
 
-    crossref_last_queried = models.DateTimeField(_('last Crossref query'), blank=True, null=True, editable=False)
+    last_queried_crossref = models.DateTimeField(_('last Crossref query'), 
+                                                 blank=True, null=True, editable=False)
 
-    doi_queried = models.BooleanField(_('DOI has been queried'), default=False)
+    class Meta:
+        verbose_name = _('work')
+        verbose_name_plural = _('works')
+        ordering = [F('published').desc(nulls_last=True), 'label']
+        default_related_name = 'works'
 
     def __str__(self):
         return self.label
 
     @staticmethod
     def autocomplete_search_fields():
-        # For Django Grappelli related lookups
         return ("title__icontains", "author__family__icontains", "label__icontains",)
 
     @property
     def year(self):
-        if self.published:
-            return self.published.year
+        return self.published.year if self.published else None
 
     @property
     def month(self):
@@ -178,92 +205,34 @@ class PublicationAbstract(models.Model):
         else:
             return ' & '.join(authors)
 
-    def authors_display(self):
-        return self.display_names(self.authors_list)
-
-    def authors_display_family(self):
-        return self.display_names([a.family for a in self.author.all()])
-
-    def display_names(self, names=None):
-        authors = []
-        for author in self.author.all():
-            authors.append(
-                f"<a href={author.get_absolute_url()}>{author}</a>")
-                
-        return mark_safe(', '.join(authors))
-        truncate_after = settings.CROSSREF_AUTHOR_TRUNCATE_AFTER
-        if names is None:
-            names = self.authors_list
-            
-        if len(names) > truncate_after:
-            return f'{names[0]} & {len(names)-1} others'
-        elif len(self.authors_list) > 1:
-            return f'{", ".join(names[:-1])} & {names[-1]}'
-        elif len(names) == 1:
-            return names[0]
-        else:
-            return ""
-
-    def author_admin_display(self):
-        if len(self.authors_list) > 2:
-            return '{} et. al.'.format(self.authors_list[0])
-        elif len(self.authors_list) == 1:
-            return self.authors_list[0]
-        else:
-            return ' & '.join(self.authors_list)
-
-    @property
-    def authors_list(self):
-        return [str(f) for f in self.author.all()]
-
-    def query_crossref(self, doi=None):
-        # if doi is None or self.DOI:
-        #     return 
-
-        if doi is None:
-            doi = self.DOI
-
-        try:
-            response = cr.works(doi)
-            self.crossref_last_queried = timezone.now()
-        except HTTPError as e:
-            self.crossref_last_queried = timezone.now()
-            raise e
-        except Exception as e:
-            raise e 
-
-        return response
-
-    def query_doi_for_bibtex(self, doi=None):
-
-        if self.doi_queried:
-            return self.bibtex
-
-        headers = {"Accept":"application/x-bibtex"}
-        response = requests.get(f"https://doi.org/{doi}", headers=headers)
-
-        if response.ok:
-            self.doi_queried = True
-        return response.text
-
-    def _get_fields(self):
-        return [f.name for f in self._meta.fields] + ['author']
-
-    def cleaned_crossref_response(self, doi=None):
-        response = self.query_crossref(doi)
-
-        # writing this out for clarity
-        # crossref uses hyphens instead of underscores so convert   them all 
-        if response is not None:
-            entry = {}
-            for k,v in response['message'].items():
-                converted_key = k.replace('-','_')
-                if converted_key in self._get_fields():
-                    entry[converted_key] = v
-            return entry
-
-
     def can_update_from_crossref(self):
         if self.crossref_last_queried and (timezone.now() - td(hours=24)) < self.crossref_last_queried: 
             return False
         return True
+
+    def bibliographic(self):
+        style = Settings.get_solo().default_style
+        return render_to_string(f"crossref/styles/{style}/bibliography.html", {'pub': self})
+   
+    
+class Funder(models.Model):
+
+    id = models.CharField(max_length=255, primary_key=True)
+    location = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    uri = models.URLField()
+    alt_names = models.JSONField()
+    replaces = models.JSONField(blank=True, null=True)
+    replaced_by = models.JSONField(blank=True, null=True)
+    tokens = models.JSONField()
+    
+    class Meta:
+        verbose_name = _('funder')
+        verbose_name_plural =  _('funders')
+        
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def autocomplete_search_fields():
+        return ("name__icontains", "id__iexact", )

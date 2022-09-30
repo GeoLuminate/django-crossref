@@ -1,0 +1,20 @@
+{% autoescape off %}{% for pub in pubs %}
+@{{ pub.type.bibtex_type }}{% templatetag openbrace %}{% if pub.citekey %}{{ pub.citekey }}{% else %}{{ pub.key }}{% endif %},
+  author = "{{ pub.authors_bibtex }}",
+  title = "{{ pub.title_bibtex }}",
+  year = {{ pub.year }}{% if pub.journal %},
+  journal = "{{ pub.journal }}"{% endif %}{% if pub.book_title %},
+  booktitle = "{{ pub.book_title }}"{% endif %}{% if pub.publisher %},
+  publisher = "{{ pub.publisher }}"{% endif %}{% if pub.volume %},
+  volume = {{ pub.volume }}{% endif %}{% if pub.institution %},
+  institution = "{{ pub.institution }}"{% endif %}{% if pub.number %},
+  number = {{ pub.number }}{% endif %}{% if pub.pages %},
+  pages = "{{ pub.pages }}"{% endif %}{% if pub.month_bibtex %},
+  month = "{{ pub.month_bibtex }}"{% endif %}{% if pub.keywords %},
+  keywords = "{{ pub.keywords }}"{% endif %}{% if pub.doi %},
+  doi = "{{ pub.doi }}"{% endif %}{% if pub.url %},
+  url = "{{ pub.url }}"{% endif %}{% if pub.note %},
+  note = "{{ pub.note }}"{% endif %}{% if pub.isbn %},
+  isbn = "{{ pub.isbn }}"{% endif %}
+}
+{% endfor %}{% endautoescape %}

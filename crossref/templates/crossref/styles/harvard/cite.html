@@ -1,15 +1,13 @@
 {% load sekizai_tags crossref_tags %}
 {% spaceless %}
-{% if type == 'p' %}
-  {% for pub in publications %}
-    {% if forloop.first %}({% endif %}{% if hyperlink %}<a href="#bib-item-{{pub.id}}">{% endif %}{{pub.authors_citation}}, {{pub.year}}{% if hyperlink %}</a>{% endif %}{% if not forloop.last %}; {% else %}){% endif %}
-    {% addtoblock "bibliography" %}{% bibliography pub %}{% endaddtoblock %}
+  {% for pub in works %}
+    {% if type == 'p' %}
+      {% comment %} Paranthetical representation {% endcomment %}
+      {% if forloop.first %}({% endif %}{% if hyperlink %}<a href="#bib-item-{{pub.id}}">{% endif %}{{pub.authors_citation}}, {{pub.year}}{% if hyperlink %}</a>{% endif %}{% if not forloop.last %}; {% else %}){% endif %}
+    {% else %}
+      {% comment %} In-line text representation {% endcomment %}
+      {% if hyperlink %}<a href="#bib-item-{{pub.id}}">{% endif %}{{pub.authors_citation}}, ({{pub.year}}{% if hyperlink %})</a>{% endif %}{% if not forloop.last %}; {% endif %}
+    {% endif %}
+    {% addtoblock "bibliography" %}{% bibliography pub %}{% endaddtoblock %} 
   {% endfor %}
-
-{% else %}
-{% for pub in publications %}
-  {% if hyperlink %}<a href="#bib-item-{{pub.id}}">{% endif %}{{pub.authors_citation}}, ({{pub.year}}{% if hyperlink %})</a>{% endif %}{% if not forloop.last %}; {% endif %}
-  {% addtoblock "bibliography" %}{% bibliography pub %}{% endaddtoblock %}
-{% endfor %}
-{% endif %}
 {% endspaceless %}

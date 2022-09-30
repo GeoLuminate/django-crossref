@@ -2,16 +2,16 @@
 
 {% block content %}
 
-<div class='publication-list'>
-	<div class='publication-paginator'>
+<div class='work-list'>
+	<div class='work-paginator'>
 		{% include "crossref/paginator.html" %}
 	</div>	
-	{% for year, publications in years %}
+	{% for year, works in years %}
 	{% if not forloop.first %}<hr class="major" />{% endif %}
-	<div class='publication-group'>
+	<div class='work-group'>
 		<h2>{{ year }}</h2>
-		{% for pub in publications %}
-			{% include "crossref/publication.html" %}
+		{% for pub in works %}
+			{% include "crossref/work.html" %}
 		{% endfor %}
 	</div>
 	{% endfor %}
