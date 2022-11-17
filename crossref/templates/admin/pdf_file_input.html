@@ -1,0 +1,10 @@
+{% load static %}
+<div style="display:flex; align-items: flex-end;">
+  {% if widget.value.url %}
+    <a href="{{ widget.value.url }}"><i class="fas fa-file-pdf"></i></a>
+  {% else %}
+    <a class='add-button' style='visibility:hidden;' href="{{ widget.value.url }}"><i class="fas fa-plus"></i></a>
+  {% endif %}
+  <input class='pdf-upload' type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} style='margin-left:1rem;' hidden>
+</div>
+

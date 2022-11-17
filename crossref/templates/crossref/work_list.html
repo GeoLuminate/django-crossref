@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n static i18n %}
+
+{% block content %}
+<div class='container'>
+	<section class='d-flex flex-row-reverse '>
+		{% if filter %}
+			<div class='w-25 ps-3'>
+				{% comment %} {{ filter.form }} {% endcomment %}
+			</div>
+		{% endif %}
+
+		<div class='w-75 border-end pe-3'>
+			<section class='main'>
+				<div class='d-flex justify-content-between'>
+					{% include "crossref/paginator.html" %}
+				</div>	
+				<div class='work-list'>
+					{% for year, works in years %}
+					{% if not forloop.first %}<hr class="major" />{% endif %}
+						{% include "crossref/work_group.html" %}
+					{% endfor %}
+				</div>
+			</section>
+		</div>
+
+	</section>
+</div>
+
+
+{% endblock %}

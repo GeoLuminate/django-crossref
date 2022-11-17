@@ -1,0 +1,43 @@
+{% extends "admin/change_form.html" %}
+{% load i18n static admin_modify %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static 'admin/css/forms.css' %}" />{% endblock %}
+
+{% block breadcrumbs %}
+	<div class="breadcrumbs">
+		<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+		<a href="../../">{% trans 'Works' %}</a> &rsaquo;
+		<a href="../">{% trans 'Works' %}</a> &rsaquo;
+		{% trans 'Review' %}
+	</div>
+{% endblock %}
+
+{% block content %}
+
+  {% trans "There were errors importing the following bibtex entries. Please correct and try again." %}
+  {% for entry in result.errors %}
+    <div class="module grp-module grp-collapse">
+      <h2 class='grp-collapse-handler collapse'>{% trans "Label" %}: {{ entry.data.label }}</h2>
+      <div class='grp-row'>
+        <label class='required'>{% trans "Failing entry contains:" %}</label><br>
+        <code>{{ entry|linebreaks }}</code>
+      </div>
+      <div class="traceback grp-row">
+        <ul>
+          {% for error in entry.messages %}
+            <li>{{ entry.messages }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% endfor %}
+
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+<footer class="grp-module grp-submit-row grp-fixed-footer">
+  <ul>
+    <li><input form='createPublicationForm' type="submit" value="Save publications" class="grp-button grp-default" name="_save"></li>
+  </ul>
+</footer>
+{% endblock %}
