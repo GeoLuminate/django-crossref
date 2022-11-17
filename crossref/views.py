@@ -1,9 +1,9 @@
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 from django.core.paginator import InvalidPage
-from .paginators import YearPaginator
-from .utils import get_work_model
+from crossref.utils.paginators import YearPaginator
+from crossref.utils import get_work_model, get_author_model
 
-Work = get_work_model()
+Work, Author = get_work_model(), get_author_model()
 
 
 class WorksByYearMixin(ListView):
@@ -11,9 +11,12 @@ class WorksByYearMixin(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = self.get_page(on='year', qs=context['filter'].qs)
+
+        if context.get('filter'):
+            context['page'] = self.get_page(on='year', qs=context['filter'].qs)
+
         years = []
-        if context['page']:
+        if context.get('page'):
             for work in context['page'].object_list:
                 if not years or (years[-1][0] != work.year):
                     years.append((work.year, []))
@@ -24,7 +27,8 @@ class WorksByYearMixin(ListView):
 
     def get_page(self, on, qs=None):
         if qs is None:
-            paginator = YearPaginator(self.get_queryset(), on=on, per_page=self.paginate_by)
+            paginator = YearPaginator(
+                self.get_queryset(), on=on, per_page=self.paginate_by)
         else:
             paginator = YearPaginator(qs, on=on, per_page=self.paginate_by)
 
@@ -41,6 +45,17 @@ class WorksByYearMixin(ListView):
         return page
 
 
-
 class WorkList(WorksByYearMixin):
     model = Work
+
+
+class WorkDetail(DetailView):
+    model = Work
+
+
+class AuthorList(ListView):
+    model = Author
+
+
+class AuthorDetail(DetailView):
+    model = Author
