@@ -21,11 +21,15 @@ setup(
     description='A publication management app with Crossref integration',
     url=REPO_URL,
     install_requires=[
-        "Django>=3,<4",    
-        "habanero==1.0.0",  
-        "django-sortedm2m", 
-
-        ],
+        "Django>=3,<4",
+        "habanero==1.0.0",
+        "django-sortedm2m",
+        "django-sekizai",
+        "django-solo",
+        "django-appconf",
+        "django-taggit",
+        "django-filer",
+    ],
     keywords='scientific django publications citations crossref',
     classifiers=[
         'Development Status :: 1 - Development',

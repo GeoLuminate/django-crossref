@@ -6,16 +6,17 @@ name = "pypi"
 [packages]
 django-sortedm2m = "*"
 habanero = "*"
-bibtexparser = "*"
 django-sekizai = "*"
-django = "*"
-django-select2 = "*"
-django-appconf = "*"
+django = "==3.2"
 coverage = "*"
 django-extensions = "*"
 model-bakery = "*"
 ipython = "*"
 django-solo = "*"
+django-appconf = "*"
+django-taggit = "*"
+django-grappelli = "*"
+django-filer = "*"
 
 [dev-packages]
 
