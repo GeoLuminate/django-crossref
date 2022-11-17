@@ -7,21 +7,22 @@ from django.template import Template, RequestContext
 from django.http import HttpRequest
 from crossref.models import Work, Author
 from .data import FUNDER, WORK
-from crossref.forms import WorkForm, FunderQuickAddForm
+from crossref.forms.forms importCrossRefWorkForm, FunderQuickAddForm
 
 User = get_user_model()
+
 
 class TestWork(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        f = WorkForm(WORK)
+        f = CrossRefWorkForm(WORK)
         if f.is_valid():
             f.save()
 
     def setUp(self):
         self.pub = Work.objects.first()
-        
+
     def test_num_authors_saved(self):
         self.assertEqual(Author.objects.count(), 3)
 
@@ -34,19 +35,18 @@ class TestWork(TestCase):
     def test_work_str_method(self):
         self.assertEqual(self.pub.label, 'Jennings2019')
 
-
-
     # def test_add_from_crossref_url(self):
     #     self.assertEqual(self.client.get('/admin/crossref/work/add-from-crossref', follow=True).status_code, 200)
 
     # def test_import_bibtex_url(self):
-	# 	self.assertEqual(self.client.get('/admin/crossref/work/import-bibtex', follow=True).status_code, 200)
+        # 	self.assertEqual(self.client.get('/admin/crossref/work/import-bibtex', follow=True).status_code, 200)
+
 
 class TestWork(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        f = WorkForm(WORK)
+        f = CrossRefWorkForm(WORK)
         if f.is_valid():
             f.save()
 

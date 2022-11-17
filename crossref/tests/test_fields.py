@@ -1,6 +1,7 @@
 from django.test import SimpleTestCase
-from ..validators import PythonTypeValidator, LengthValidator
-from ..fields import ArrayField, ObjectField, HomogenousArrayField
+from ..utils.validators import PythonTypeValidator, LengthValidator
+from ..forms.fields import ArrayField, ObjectField, HomogenousArrayField
+
 
 class TestFields(SimpleTestCase):
 
