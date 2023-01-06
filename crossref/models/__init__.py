@@ -1,1 +1,1 @@
-from .models import Configuration, Funder, Subject, Work, Author
+from .models import Configuration, Subject, Work, Author

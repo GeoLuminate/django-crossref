@@ -6,7 +6,6 @@ from datetime import timedelta as td
 from django.utils import timezone
 from django.urls import reverse
 from django.db.models import F
-
 from .fields import (
     ObjectField,
     StringArrayField,
@@ -18,12 +17,7 @@ from crossref.utils.choices import STYLE_CHOICES
 from django.template.loader import render_to_string
 from .managers import WorkQuerySet, AuthorQuerySet
 from taggit.managers import TaggableManager
-from django.core.validators import FileExtensionValidator
-from django.db.models.base import ModelBase
-from filer.fields.image import FilerImageField
 from filer.fields.file import FilerFileField
-from filer.models import File
-from ..utils import get_citation_style_path
 
 
 class Configuration(SingletonModel):
@@ -339,39 +333,3 @@ class Work(models.Model):
         style = Configuration.get_solo().default_style
         return render_to_string(
             f"crossref/styles/{style}/bibliography.html", {'pub': self})
-
-
-class Funder(models.Model):
-
-    id = models.CharField(_('Crossref ID'), max_length=255, primary_key=True)
-    location = models.CharField(
-        _('location'),
-        max_length=255,
-        blank=True,
-        null=True)
-    name = models.CharField(_('name'), max_length=255)
-    uri = models.URLField(_('URI'), blank=True, null=True)
-    alt_names = StringArrayField(_('alternative names'), blank=True, null=True)
-    replaces = StringArrayField(_('replaces'), blank=True, null=True)
-    replaced_by = StringArrayField(_('replaced_by'), blank=True, null=True)
-    hierarchy_names = ObjectField(_('hierarchy names'), blank=True, null=True)
-    hierarchy = ObjectField(_('hierarchy'), blank=True, null=True)
-    work_count = models.PositiveSmallIntegerField(_('work count'),
-                                                  blank=True, null=True)
-    descendant_work_count = models.PositiveSmallIntegerField(_('descendant work count'),
-                                                             blank=True, null=True)
-
-    class Meta:
-        verbose_name = _('funder')
-        verbose_name_plural = _('funders')
-
-    def __str__(self):
-        return self.name
-
-    @staticmethod
-    def autocomplete_search_fields():
-        return ("name__icontains", "id__iexact", )
-
-    def _hierarchy(self):
-        """Builds a more pythonic hierarchy"""
-        pass

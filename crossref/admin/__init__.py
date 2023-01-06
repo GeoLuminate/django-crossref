@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .mixins import WorkAdminMixin, AuthorAdminMixin, FunderAdminMixin
-from ..models import Work, Author, Funder, Configuration, Subject
+from ..models import Work, Author, Configuration, Subject
 from solo.admin import SingletonModelAdmin
 
 
@@ -10,5 +10,4 @@ is not desired, these can be unregistered using `admin.site.deregister`
 admin.site.register(Configuration, SingletonModelAdmin)
 admin.site.register(Work, WorkAdminMixin)
 admin.site.register(Author, AuthorAdminMixin)
-admin.site.register(Funder, FunderAdminMixin)
 admin.site.register(Subject, admin.ModelAdmin)

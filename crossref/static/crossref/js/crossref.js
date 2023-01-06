@@ -1,17 +1,19 @@
-if (!$) {$ = django.jQuery;} // for use in the django admin site without specifying another jquery version
+if (!$) {
+  $ = django.jQuery;
+} // for use in the django admin site without specifying another jquery version
 
 function getCookie(name) {
   var cookieValue = null;
   if (document.cookie && document.cookie != '') {
-      var cookies = document.cookie.split(';');
-      for (var i = 0; i < cookies.length; i++) {
-          var cookie = $.trim(cookies[i]);
-          // Does this cookie string begin with the name we want?
-          if (cookie.substring(0, name.length + 1) == (name + '=')) {
-              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-              break;
-          }
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var cookie = $.trim(cookies[i]);
+      // Does this cookie string begin with the name we want?
+      if (cookie.substring(0, name.length + 1) == (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
       }
+    }
   }
   return cookieValue;
 }
@@ -31,13 +33,13 @@ function build_reference(item) {
 
 function post_to_url() {
   $.post({
-    url: $(this).data()['post-Url'], 
+    url: $(this).data()['post-Url'],
     data: parseJSON($(this).select2('data')[0]),
-    success : function(result) {
-        window.location.reload();
+    success: function (result) {
+      window.location.reload();
     },
-    error: function(xhr, resp, text) {
-        console.log(xhr, resp, text);
+    error: function (xhr, resp, text) {
+      console.log(xhr, resp, text);
     }
   })
 }
@@ -45,9 +47,9 @@ function post_to_url() {
 function parseJSON(item) {
 
   var output = {};
-  Object.entries(item).forEach(function(field) {
+  Object.entries(item).forEach(function (field) {
     // replace hyphens with underscores
-    field[0] = field[0].replace('-','_')
+    field[0] = field[0].replace('-', '_')
 
     // convert objects to string representations
     if (typeof field[1] == "object") {
@@ -65,9 +67,9 @@ $(function () {
 
   $.ajaxSetup({
     beforeSend: function (xhr, settings) {
-        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-            xhr.setRequestHeader("X-CSRFToken", csrftoken);
-        }
+      if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+      }
     }
   });
 
@@ -80,19 +82,20 @@ $(function () {
         return {
           "query": params.term,
           "select": 'DOI,container-title',
-          // "rows": '3',
-          "mailto": 'jennings@gfz-potsdam.de',
         };
       },
 
       processResults: function (data) {
         return {
           results: $.map(data.message.items, function (item) {
-            return {...item, ...{
-              id: item[$select.data()['crossrefId']],
-              text: item[$select.data()['crossrefName']], 
+            return {
+              ...item,
+              ...{
+                id: item[$select.data()['crossrefId']],
+                text: item[$select.data()['crossrefName']],
+              }
             }
-          }})
+          })
         };
       }
     }
@@ -101,7 +104,7 @@ $(function () {
   $select.on('change', post_to_url)
 
 
-  $('#select2Opener').on('click', function(e) {
+  $('#select2Opener').on('click', function (e) {
     e.preventDefault();
     $select.select2('open');
   })

@@ -1,9 +1,9 @@
 from crossref.conf import settings
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from habanero import Crossref
 from django.contrib.sites.shortcuts import get_current_site
 import os
+import requests
 
 
 def get_config():
@@ -11,20 +11,9 @@ def get_config():
 
 
 def query_crossref_for_doi(doi, request=None):
-    if not doi:
-        return None
-    config = get_config().get_solo()
-    if request is not None:
-        site = get_current_site(request)
-
-    cr = Crossref(
-        base_url=settings.CROSSREF_BASE_URL,
-        api_key=config.api_key,
-        mailto=settings.CROSSREF_MAILTO,
-        ua_string=config.ua_string,
-    )
-
-    return cr.works(doi)
+    if doi:
+        response = requests.get(f"https://api.crossref.org/works/{doi}")
+        return response.json()['message']
 
 
 def query_and_clean_crossref(doi, request=None):
